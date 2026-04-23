@@ -24,7 +24,7 @@
 
 ### Nginx
 
-```json
+```nginx
 server {
     listen       80;
     server_name  quiz-master.mydomain.hu;
@@ -62,7 +62,7 @@ services:
 
 ## Deployment - Kubernetes
 
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
