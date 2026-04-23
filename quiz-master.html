@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Master</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --surface: #13141a;
+    --surface2: #1a1b24;
+    --surface3: #22232f;
+    --border: rgba(255,255,255,0.07);
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(108,99,255,0.35);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.12);
+    --text: #f1f2f6;
+    --muted: #6b7280;
+    --muted2: #9ca3af;
+    --timer-warn: #f59e0b;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Background noise grain */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow blobs */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.18;
+  }
+  .blob-1 { width: 400px; height: 400px; background: #6c63ff; top: -100px; left: -100px; }
+  .blob-2 { width: 300px; height: 300px; background: #a78bfa; bottom: -80px; right: -80px; }
+
+  /* App container */
+  #app {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  /* ─── SCREENS ─── */
+  .screen { display: none; width: 100%; max-width: 720px; }
+  .screen.active { display: flex; flex-direction: column; animation: fadeUp 0.4s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── LANDING ─── */
+  .landing {
+    align-items: center;
+    text-align: center;
+    gap: 0;
+  }
+
+  .upload-bar {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .upload-bar:hover { border-color: var(--accent); }
+  .upload-bar input { display: none; }
+  .upload-bar .upload-icon { font-size: 18px; }
+  .upload-bar .upload-text { font-size: 13px; color: var(--muted2); text-align: left; flex: 1; }
+  .upload-bar .upload-text strong { color: var(--accent2); display: block; font-size: 12px; }
+  .upload-badge {
+    font-size: 11px;
+    background: var(--accent);
+    color: white;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .brain-icon {
+    width: 90px; height: 90px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 28px;
+    box-shadow: 0 0 40px var(--accent-glow);
+    position: relative;
+  }
+  .brain-icon::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 25px;
+    background: linear-gradient(135deg, var(--accent) 0%, transparent 60%);
+    opacity: 0.3;
+    z-index: -1;
+  }
+  .brain-icon svg { width: 44px; height: 44px; }
+
+  .landing-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(44px, 10vw, 64px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -2px;
+    margin-bottom: 14px;
+  }
+  .landing-title .line1 { color: var(--text); display: block; }
+  .landing-title .line2 { color: var(--accent2); display: block; }
+
+  .landing-sub {
+    color: var(--muted2);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 380px;
+    margin-bottom: 44px;
+  }
+  .landing-sub strong { color: var(--text); }
+
+  .feature-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 36px;
+  }
+  .chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 7px 14px;
+    font-size: 12px;
+    color: var(--muted2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip span { font-size: 14px; }
+
+  .btn-primary {
+    width: 100%;
+    padding: 18px 24px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 8px 32px var(--accent-glow);
+    letter-spacing: 0.2px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px var(--accent-glow); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 16px 24px;
+    border-radius: var(--radius);
+    background: var(--surface2);
+    color: var(--muted2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: var(--surface3); color: var(--text); }
+
+  /* ─── MODE SELECT ─── */
+  .mode-screen { gap: 16px; }
+
+  .modal-header {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .modal-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .modal-header p { color: var(--muted2); font-size: 14px; }
+
+  .mode-list { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (min-width: 600px) {
+    .mode-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .question-text { font-size: 20px; }
+    .landing-title { font-size: clamp(52px, 10vw, 72px); }
+    .answers-list { gap: 12px; }
+    .answer-btn { font-size: 15px; padding: 16px 18px; }
+    .quiz-actions .btn-check, .quiz-actions .btn-next { padding: 18px; font-size: 16px; }
+    .question-card { padding: 28px 32px; }
+  }
+
+  @media (max-width: 500px) {
+    #app { padding: 16px; }
+    .screen { max-width: 100%; }
+    .landing-title { font-size: clamp(36px, 12vw, 52px); letter-spacing: -1px; }
+    .question-text { font-size: 16px; }
+    .answer-btn { font-size: 13px; padding: 12px 14px; }
+    .quiz-actions { gap: 8px; }
+    .quiz-actions .btn-check, .quiz-actions .btn-next { padding: 14px 10px; font-size: 14px; }
+    .score-circle { width: 140px; height: 140px; }
+    .result-title { font-size: 26px; }
+  }
+
+  .mode-item {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .mode-item:hover { border-color: var(--accent); background: var(--surface3); }
+  .mode-item.selected {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.1);
+  }
+
+  .mode-emoji {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .mode-info { flex: 1; }
+  .mode-info strong {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .mode-info span { color: var(--muted2); font-size: 13px; }
+
+  .mode-radio {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .mode-item.selected .mode-radio {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  .mode-item.selected .mode-radio::after {
+    content: '';
+    width: 6px; height: 6px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  /* ─── QUIZ ─── */
+  .quiz-screen { gap: 0; }
+
+  .quiz-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .btn-back {
+    background: none;
+    border: none;
+    color: var(--muted2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0;
+    transition: color 0.2s;
+  }
+  .btn-back:hover { color: var(--text); }
+
+  .timer-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .timer-badge.warn { color: var(--timer-warn); border-color: var(--timer-warn); }
+  .timer-badge.danger { color: var(--red); border-color: var(--red); animation: pulse 0.5s ease infinite alternate; }
+
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.6; } }
+
+  .progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .progress-label { font-size: 13px; color: var(--muted2); }
+  .progress-count { font-size: 13px; color: var(--muted2); font-variant-numeric: tabular-nums; }
+
+  .progress-track {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 99px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .question-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent2);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .question-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .answers-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+
+  .answer-btn {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .answer-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--surface3); }
+  .answer-btn:disabled { cursor: default; }
+
+  .answer-dot {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface3);
+    border: 1.5px solid var(--border);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+
+  .answer-btn.selected .answer-dot { background: var(--accent); border-color: var(--accent); }
+  .answer-btn.correct { background: var(--green-bg); border-color: var(--green); }
+  .answer-btn.correct .answer-dot { background: var(--green); border-color: var(--green); color: white; }
+  .answer-btn.wrong { background: var(--red-bg); border-color: var(--red); }
+  .answer-btn.wrong .answer-dot { background: var(--red); border-color: var(--red); color: white; }
+
+  .quiz-actions {
+    display: flex;
+    gap: 10px;
+  }
+  .quiz-actions .btn-check {
+    flex: 1;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: var(--green);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .quiz-actions .btn-check:hover { filter: brightness(1.1); }
+  .quiz-actions .btn-check:disabled { opacity: 0.4; cursor: not-allowed; }
+  .quiz-actions .btn-next {
+    flex: 1;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
+  .quiz-actions .btn-next:hover { transform: translateY(-1px); }
+  .quiz-actions .btn-next:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ─── RESULTS ─── */
+  .results-screen { gap: 0; }
+
+  .score-circle-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+  .score-circle {
+    width: 160px; height: 160px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  .score-circle svg {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    transform: rotate(-90deg);
+  }
+  .score-circle .circle-bg { fill: none; stroke: var(--surface2); stroke-width: 8; }
+  .score-circle .circle-fill {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease;
+  }
+  .score-icon { font-size: 28px; margin-bottom: 4px; }
+  .score-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+  }
+
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .result-pct {
+    text-align: center;
+    color: var(--muted2);
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  .result-time {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 auto 28px;
+    width: fit-content;
+    color: var(--accent2);
+  }
+
+  .answers-review-header {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .answers-review { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; max-height: 300px; overflow-y: auto; }
+  .answers-review::-webkit-scrollbar { width: 4px; }
+  .answers-review::-webkit-scrollbar-track { background: transparent; }
+  .answers-review::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 99px; }
+
+  .review-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+  }
+  .review-item-num {
+    width: 22px; height: 22px;
+    background: var(--surface3);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted2);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .review-item-q {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted2);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .review-item-a {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .review-item-a.correct { color: var(--green); }
+  .review-item-a.wrong { color: var(--red); }
+  .review-item-correct-ans { font-size: 12px; color: var(--green); margin-top: 4px; }
+
+  .results-actions { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ─── LOADING ─── */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    transition: opacity 0.4s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--surface3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-height: 700px) {
+    #app { justify-content: flex-start; padding-top: 20px; }
+    .answers-review { max-height: 200px; }
+  }
+</style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div id="app">
+  <!-- ─── LANDING ─── -->
+  <div class="screen landing active" id="screen-landing">
+    <label class="upload-bar" title="JSON fájl feltöltése">
+      <input type="file" id="json-upload" accept=".json">
+      <span class="upload-icon">📂</span>
+      <div class="upload-text">
+        Saját kérdések feltöltése
+        <strong id="upload-filename">questions.json (alapértelmezett • 100 kérdés)</strong>
+      </div>
+      <span class="upload-badge" id="upload-badge">Feltöltés</span>
+    </label>
+
+    <div class="brain-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.5 2a2.5 2.5 0 0 1 0 5H9a7 7 0 0 0-7 7 4 4 0 0 0 4 4h1.5"/>
+        <path d="M14.5 2a2.5 2.5 0 0 0 0 5H15a7 7 0 0 1 7 7 4 4 0 0 1-4 4h-1.5"/>
+        <path d="M9 16a3 3 0 0 0 6 0v-1a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1z"/>
+      </svg>
+    </div>
+
+    <div class="landing-title">
+      <span class="line1">QUIZ</span>
+      <span class="line2">MASTER</span>
+    </div>
+    <p class="landing-sub">Vágj bele a kérdésekbe és légy <strong>TE</strong> a szakma legjobbja!</p>
+
+    <div class="feature-chips">
+      <div class="chip"><span>❓</span><span id="chip-count">100 kérdés</span></div>
+      <div class="chip"><span>⚡</span>Véletlenszerű sorrend</div>
+      <div class="chip"><span>⭐</span>Válaszaid ellenőrizheted</div>
+    </div>
+
+    <button class="btn-primary" onclick="showModeSelect()">
+      Quiz indítása <span>→</span>
+    </button>
+  </div>
+
+  <!-- ─── MODE SELECT ─── -->
+  <div class="screen mode-screen" id="screen-mode">
+    <div class="modal-header">
+      <h2>Teszt kiválasztása</h2>
+      <p>Válaszd ki hány kérdést szeretnél!</p>
+    </div>
+
+    <div class="mode-list">
+      <div class="mode-item" data-count="10" onclick="selectMode(10, this)">
+        <div class="mode-emoji" style="background:rgba(239,68,68,0.15)">🏃</div>
+        <div class="mode-info">
+          <strong>10 kérdés</strong>
+          <span>Szuper gyors teszt</span>
+        </div>
+        <div class="mode-radio"></div>
+      </div>
+      <div class="mode-item" data-count="25" onclick="selectMode(25, this)">
+        <div class="mode-emoji" style="background:rgba(34,197,94,0.15)">🧠</div>
+        <div class="mode-info">
+          <strong>25 kérdés</strong>
+          <span>Gyors teszt</span>
+        </div>
+        <div class="mode-radio"></div>
+      </div>
+      <div class="mode-item" data-count="50" onclick="selectMode(50, this)">
+        <div class="mode-emoji" style="background:rgba(59,130,246,0.15)">🚶</div>
+        <div class="mode-info">
+          <strong>50 kérdés</strong>
+          <span>Közepes teszt</span>
+        </div>
+        <div class="mode-radio"></div>
+      </div>
+      <div class="mode-item" data-count="100" onclick="selectMode(100, this)">
+        <div class="mode-emoji" style="background:rgba(108,99,255,0.15)">🎓</div>
+        <div class="mode-info">
+          <strong>100 kérdés</strong>
+          <span>Teljes vizsga</span>
+        </div>
+        <div class="mode-radio"></div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btn-start" onclick="startQuiz()" style="opacity:0.4;pointer-events:none">
+      Válassz egy módot
+    </button>
+    <button class="btn-secondary" onclick="showScreen('landing')" style="margin-top:8px">← Vissza</button>
+  </div>
+
+  <!-- ─── QUIZ ─── -->
+  <div class="screen quiz-screen" id="screen-quiz">
+    <div class="quiz-topbar">
+      <button class="btn-back" onclick="confirmBack()">← Menü</button>
+      <div class="timer-badge" id="timer-badge">⏱ <span id="timer-display">00:00</span></div>
+    </div>
+
+    <div class="progress-row">
+      <span class="progress-label">Kérdések</span>
+      <span class="progress-count" id="progress-count">1 / 10</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+
+    <div class="question-card">
+      <div class="question-label" id="question-label">Kérdés 1</div>
+      <div class="question-text" id="question-text">Kérdés szövege...</div>
+    </div>
+
+    <div class="answers-list" id="answers-list"></div>
+
+    <div class="quiz-actions">
+      <button class="btn-check" id="btn-check" onclick="checkAnswer()" disabled>
+        ✔ Ellenőrzés
+      </button>
+      <button class="btn-next" id="btn-next" onclick="nextQuestion()" disabled>
+        Következő →
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── RESULTS ─── -->
+  <div class="screen results-screen" id="screen-results">
+    <div class="score-circle-wrap">
+      <div class="score-circle">
+        <svg viewBox="0 0 160 160">
+          <circle class="circle-bg" cx="80" cy="80" r="68"/>
+          <circle class="circle-fill" id="circle-fill" cx="80" cy="80" r="68"
+            stroke-dasharray="427.26"
+            stroke-dashoffset="427.26"/>
+        </svg>
+        <div class="score-icon" id="result-icon">📚</div>
+        <div class="score-num" id="result-score">0/10</div>
+      </div>
+    </div>
+
+    <div class="result-title" id="result-title">Tanulj még!</div>
+    <div class="result-pct" id="result-pct">0% helyes</div>
+    <div class="result-time" id="result-time">⏱ Felhasznált idő 00:00</div>
+
+    <div class="answers-review-header">Válaszaid</div>
+    <div class="answers-review" id="answers-review"></div>
+
+    <div class="results-actions">
+      <button class="btn-primary" onclick="restartSame()">↺ Újrakezd</button>
+      <button class="btn-secondary" onclick="showScreen('landing')">⌂ Vissza a főmenübe</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DEFAULT QUESTIONS ───
+const DEFAULT_QUESTIONS = </script>
+<script id="questions-data">
+</script>
+<script>
+// We'll inject questions via JS below
+let allQuestions = [];
+let quizQuestions = [];
+let currentIndex = 0;
+let selectedAnswer = null;
+let checked = false;
+let results = [];
+let timerInterval = null;
+let totalSeconds = 0;
+let selectedMode = null;
+let startTime = null;
+let elapsedSeconds = 0;
+
+// Inject default questions
+const DEFAULT_JSON = `[{"id": 1, "question": "Melyik parancs szolgál a Windows rendszerleíró adatbázisának (Registry) megnyitására?", "answers": ["msconfig", "regedit", "gped.msc", "devmgmt.msc"], "correctAnswer": "regedit"}, {"id": 2, "question": "Mi a Windows PowerShell alapértelmezett végrehajtási szabályzata (execution policy)?", "answers": ["AllSigned", "Unrestricted", "Restricted", "RemoteSigned"], "correctAnswer": "Restricted"}, {"id": 3, "question": "Melyik Windows szolgáltatás felelős az IP-cím automatikus kiosztásáért?", "answers": ["DNS", "WINS", "DHCP", "NAT"], "correctAnswer": "DHCP"}, {"id": 4, "question": "Melyik fájlrendszert használja alapértelmezetten a Windows 10/11?", "answers": ["FAT32", "ext4", "NTFS", "exFAT"], "correctAnswer": "NTFS"}, {"id": 5, "question": "Mi a funkciója a Windows Feladatkezelő (Task Manager) eszköznek?", "answers": ["Lemezpartíciók kezelése", "futó folyamatok és erőforrások-használata figyelése", "Hálózati beállítások módosítása", "Felhasználói fiókok létrehozása"], "correctAnswer": "futó folyamatok és erőforrások-használata figyelése"}, {"id": 6, "question": "Melyik parancs segítségével lehet DNS gyorsítótárat üríteni Windows alatt?", "answers": ["ipconfig /release", "ipconfig /flushdns", "netsh dns clear", "nslookup /flush"], "correctAnswer": "ipconfig /flushdns"}, {"id": 7, "question": "Mi a Windows BitLocker funkciója?", "answers": ["Vírusvédelem", "Lemeztitkosítás", "Tűzfelkezelés", "Biztonsági mentések"], "correctAnswer": "Lemeztitkosítás"}, {"id": 8, "question": "Melyik paranccsal lehet a Windows tűzfal állapotát ellenőrizni parancssorból?", "answers": ["firewall-cmd --state", "netsh advfirewall show allprofiles", "wf.msc", "Get-firewall"], "correctAnswer": "netsh advfirewall show allprofiles"}, {"id": 9, "question": "Mi a Group Policy (csoportházirend) célja a Windows rendszerben?", "answers": ["Fájlok titkosítása", "Felhasználói és számítógép-beállítások központi kezelése", "Merevlemez particionálása", "Hálózati forgalom monitorozása"], "correctAnswer": "Felhasználói és számítógép-beállítások központi kezelése"}, {"id": 10, "question": "Melyik paranccsal lehet a Windows rendszerben hálózati konfigurációt megjeleníteni?", "answers": ["ifconfig", "ipconfig ", "netstat -a", "route print"], "correctAnswer": "ipconfig "}, {"id": 11, "question": "Melyik Windows beépített eszköz alkalmas lemezek particionálására?", "answers": ["Disk Cleanup", "Disk Management", "Device Manager", "Computer Management"], "correctAnswer": "Disk Management"}, {"id": 12, "question": "Mi a Windows Remote Desktop Protocol (RDP) alapértelmezett portszáma?", "answers": ["22", "443", "3389", "8080"], "correctAnswer": "3389"}, {"id": 13, "question": "Melyik paranccsal lehet egy megosztott mappát létrehozni Windows parancssorból?", "answers": ["share /create", "net share", "mkshare", "create share"], "correctAnswer": "net share"}, {"id": 14, "question": "Mi a Windows Active Directory (AD) fő funkciója?", "answers": ["Webszerver üzemeltetés", "Központi felhasználó- és erőforrás-kezelés tartományi környezetben", "Adatbázis-kezelés", "Fájlok tömörítése"], "correctAnswer": "Központi felhasználó- és erőforrás-kezelés tartományi környezetben"}, {"id": 15, "question": "Melyik Windows parancs listázza az aktív hálózati kapcsolatokat?", "answers": ["ipconfig /all", "netstat -an", "tracert", "nslookup"], "correctAnswer": "netstat -an"}, {"id": 16, "question": "Mi a Windows Event Viewer (Eseménynapló) célja?", "answers": ["Illesztőprogramok frissítése", "Rendszer- és alkalmazásesemények naplózása és megtekintése", "Fájlok visszaállítása", "Hálózati forgalom szűrése"], "correctAnswer": "Rendszer- és alkalmazásesemények naplózása és megtekintése"}, {"id": 17, "question": "Melyik paranccsal lehet egy Windows szolgáltatást leállítani parancssorból?", "answers": ["stop service", "net stop", "sc halt", "service --stop"], "correctAnswer": "net stop"}, {"id": 18, "question": "Mi a Windows Defender funkciója?", "answers": ["Lemeztitkosítás", "Beépített vírus- és fenyegetésvédelem", "Rendszer-visszaállítás", "VPN-kezelés"], "correctAnswer": "Beépített vírus- és fenyegetésvédelem"}, {"id": 19, "question": "Melyik Windows eszközzel lehet rendszerindítási programokat kezelni?", "answers": ["regedit", "msconfig / Feladatkezelő Indítás fül", "gpedit.msc", "services.msc"], "correctAnswer": "msconfig / Feladatkezelő Indítás fül"}, {"id": 20, "question": "Mi a Windows NTFS fájlrendszer előnye a FAT32-vel szemben?", "answers": ["Gyorsabb olvasási sebesség", "Fájlszintű jogosultságkezelés és 4 GB feletti fájlméret támogatása", "Kompatibilis minden operációs rendszerrel", "Kisebb lemezhely-igény"], "correctAnswer": "Fájlszintű jogosultságkezelés és 4 GB feletti fájlméret támogatása"}, {"id": 21, "question": "Melyik paranccsal lehet ellenőrizni a lemez épségét Windows alatt?", "answers": ["sfc /scannow", "chkdsk", "diskpart", "format"], "correctAnswer": "chkdsk"}, {"id": 22, "question": "Mi a Windows WMI (Windows Management Instrumentation) célja?", "answers": ["Grafikus felhasználói felület kezelése", "Rendszer- és hardverinformációk lekérdezése és kezelése szkriptekből", "Nyomtatók telepítése", "Windows frissítések kezelése"], "correctAnswer": "Rendszer- és hardverinformációk lekérdezése és kezelése szkriptekből"}, {"id": 23, "question": "Melyik protokollt használja a Windows fájlmegosztás?", "answers": ["FTP", "SMB/CIFS", "NFS", "HTTP"], "correctAnswer": "SMB/CIFS"}, {"id": 24, "question": "Mi a sfc /scannow parancs funkciója?", "answers": ["Lemez formázása", "Rendszerfájlok integritásának ellenőrzése és javítása", "Hálózati adapter újraindítása", "Szolgáltatások listázása"], "correctAnswer": "Rendszerfájlok integritásának ellenőrzése és javítása"}, {"id": 25, "question": "Melyik Windows szolgáltatás kezeli az automatikus frissítéseket?", "answers": ["Windows Installer", "Windows Update", "BITS", "Windows Search"], "correctAnswer": "Windows Update"}, {"id": 26, "question": "Mi a Hyper-V a Windows rendszerben?", "answers": ["Felhőalapú tárhely szolgáltatás", "Beépített virtualizációs platform", "Hálózati proxy szerver", "Lemezkezelő alkalmazás"], "correctAnswer": "Beépített virtualizációs platform"}, {"id": 27, "question": "Melyik paranccsal lehet új felhasználót létrehozni Windows parancssorból?", "answers": ["adduser", "net user <név> /add", "useradd", "create user"], "correctAnswer": "net user <név> /add"}, {"id": 28, "question": "Mi a Windows UAC (User Account Control) funkciója?", "answers": ["Fájlok titkosítása", "Rendszergazdai jogosultságot igénylő műveletek jóváhagyásának kérése", "Hálózati forgalom figyelése", "Felhasználói profilok szinkronizálása"], "correctAnswer": "Rendszergazdai jogosultságot igénylő műveletek jóváhagyásának kérése"}, {"id": 29, "question": "Melyik Windows-eszköz jeleníti meg a számítógép hardverösszetevőit?", "answers": ["Device Manager (Eszközkezelő)", "Disk Management", "Task Scheduler", "Performance Monitor"], "correctAnswer": "Device Manager (Eszközkezelő)"}, {"id": 30, "question": "Mi a DISM parancs célja a Windows rendszerben?", "answers": ["Felhasználók kezelése", "Windows-rendszerkép szervizelése és javítása", "Hálózati konfiguráció módosítása", "Fájlrendszer konvertálása"], "correctAnswer": "Windows-rendszerkép szervizelése és javítása"}, {"id": 31, "question": "Melyik paranccsal lehet a Windows licencállapotát ellenőrizni?", "answers": ["slmgr /xpr", "wmic license", "winver /key", "systeminfo /license"], "correctAnswer": "slmgr /xpr"}, {"id": 32, "question": "Mi a Windows Safe Mode (Csökkentett mód) célja?", "answers": ["Maximális teljesítmény biztosítása", "A rendszer minimális illesztőprogramokkal való indítása hibaelhárításhoz", "Hálózati sebesség növelése", "Automatikus frissítések telepítése"], "correctAnswer": "A rendszer minimális illesztőprogramokkal való indítása hibaelhárításhoz"}, {"id": 33, "question": "Melyik paranccsal lehet megnyitni a helyi biztonsági házirendet?", "answers": ["gpedit.msc", "secpol.msc", "compmgmt.msc", "lusrmgr.msc"], "correctAnswer": "secpol.msc"}, {"id": 34, "question": "Mi a Windows Task Scheduler (Feladatütemező) funkciója?", "answers": ["Lemezek defragmentálása", "Feladatok időzített vagy eseményvezérelt automatikus futtatása", "Felhasználói fiókok kezelése", "Rendszerfrissítések telepítése"], "correctAnswer": "Feladatok időzített vagy eseményvezérelt automatikus futtatása"}, {"id": 35, "question": "Melyik paranccsal lehet fájlok jogosultságait módosítani Linux alatt?", "answers": ["chown", "chmod", "chgrp", "setfacl"], "correctAnswer": "chmod"}, {"id": 36, "question": "Melyik könyvtárban találhatók a rendszerszintű konfigurációs fájlok Linux alatt?", "answers": ["/var", "/etc", "/usr", "/opt"], "correctAnswer": "/etc"}, {"id": 37, "question": "Melyik paranccsal lehet egy futó folyamatot leállítani Linux alatt a PID alapján?", "answers": ["stop ", "end", "kill", "terminate"], "correctAnswer": "kill"}, {"id": 38, "question": "Melyik paranccsal lehet megtekinteni a hálózati interfészek konfigurációját?", "answers": ["netstat", "ifconfig / ip addr", "route", "arp"], "correctAnswer": "ifconfig / ip addr"}, {"id": 39, "question": "Mit jelent a sudo parancs Linux alatt?", "answers": ["System Utility for Disk Operations", "Super User Do", "Switch User Directory Option", "Secure Unified Data Output"], "correctAnswer": "Super User Do"}, {"id": 40, "question": "Melyik paranccsal lehet szöveges fájlt megjeleníteni a terminálban?", "answers": ["cat", "cp", "mv", "mkdir"], "correctAnswer": "cat"}, {"id": 41, "question": "Melyik paranccsal lehet csomagokat telepíteni Debian/Ubuntu rendszereken?", "answers": ["yum install", "apt install", "pacman -S", "dnf install"], "correctAnswer": "apt install"}, {"id": 42, "question": "Melyik paranccsal lehet a Linux rendszer szabad lemezterületét megtekinteni?", "answers": ["ls -l", "df -h", "du -sh", "free -m"], "correctAnswer": "df -h"}, {"id": 43, "question": "Melyik paranccsal lehet keresni fájlokat a Linux fájlrendszerben?", "answers": ["search", "locate /find", "lookup", "scan"], "correctAnswer": "locate /find"}, {"id": 44, "question": "Mi a /home könyvtár szerepe Linux alatt?", "answers": ["Rendszernaplók tárolása", "Felhasználói saját könyvtárak helye", "Ideiglenes fájlok tárolása", "Rendszermagfájlok helye"], "correctAnswer": "Felhasználói saját könyvtárak helye"}, {"id": 45, "question": "Melyik parancs mutatja meg a jelenleg futó folyamatokat?", "answers": ["ls", "ps", "pwd", "df"], "correctAnswer": "ps"}, {"id": 46, "question": "Mi a crontab parancs funkciója?", "answers": ["Felhasználók kezelése", "Ütemezett feladatok beállítása", "Hálózati interfészek konfigurálása", "Fájlrendszer csatolása"], "correctAnswer": "Ütemezett feladatok beállítása"}, {"id": 47, "question": "Melyik paranccsal lehet könyvtárat váltani a terminálban?", "answers": ["mv", "cd", "ls", "cp"], "correctAnswer": "cd"}, {"id": 48, "question": "Mi a root felhasználó szerepe Linux alatt?", "answers": ["Alapértelmezett vendégfelhasználó", "A rendszer legmagasabb jogosultsági szintű rendszergazdája", "Hálózati szolgáltatás", "Naplózó folyamat"], "correctAnswer": "A rendszer legmagasabb jogosultsági szintű rendszergazdája"}, {"id": 49, "question": "Melyik paranccsal lehet szöveget keresni fájlokban?", "answers": ["find", "grep", "sed", "awk"], "correctAnswer": "grep"}, {"id": 50, "question": "Mi a /var/log könyvtár szerepe?", "answers": ["Felhasználói adatok tárolása", "Rendszer- és alkalmazásnaplók tárolása", "Ideiglenes fájlok helye", "Futtatható bináris fájlok helye"], "correctAnswer": "Rendszer- és alkalmazásnaplók tárolása"}, {"id": 51, "question": "Melyik paranccsal lehet fájlrendszert csatolni (mount) Linux alatt?", "answers": ["attach", "mount", "link", "bind"], "correctAnswer": "mount"}, {"id": 52, "question": "Mi a systemctl parancs funkciója?", "answers": ["Fájlok másolása", "Systemd szolgáltatások kezelése (indítás, leállítás, engedélyezés)", "Felhasználók listázása", "Hálózati csomagok elemzése"], "correctAnswer": "Systemd szolgáltatások kezelése (indítás, leállítás, engedélyezés)"}, {"id": 53, "question": "Melyik paranccsal lehet egy fájl tulajdonosát megváltoztatni?", "answers": ["chmod", "chown", "chgrp", "setattr"], "correctAnswer": "chown"}, {"id": 54, "question": "Mi a swap partíció funkciója Linux alatt?", "answers": ["Biztonsági mentés", "Virtuális memória kiterjesztése a lemezen", "Rendszerindító partíció", "Hálózati gyorsítótár"], "correctAnswer": "Virtuális memória kiterjesztése a lemezen"}, {"id": 55, "question": "Melyik paranccsal lehet a rendszer memóriahasználatát megtekinteni?", "answers": ["df -h", "free -m", "top -m", "mem --stat"], "correctAnswer": "free -m"}, {"id": 56, "question": "Mi a /tmp könyvtár szerepe?", "answers": ["Állandó felhasználói fájlok tárolása", "Ideiglenes fájlok tárolása, amelyeket a rendszer rendszeresen töröl", "Rendszermag modulok helye", "Napló fájlok helye"], "correctAnswer": "Ideiglenes fájlok tárolása, amelyeket a rendszer rendszeresen töröl"}, {"id": 57, "question": "Melyik paranccsal lehet archívumot (tar) létrehozni?", "answers": ["zip -r", "tar -cvf", "compress", "pack"], "correctAnswer": "tar -cvf"}, {"id": 58, "question": "Mi a különbség a hard link és a symbolic link (szimbolikus hivatkozás) között?", "answers": ["Nincs különbség", "A hard link közvetlenül az inode-ra mutat, a symlink egy útvonalra hivatkozik", "A symlink gyorsabb mint a hard link", "A hard link csak könyvtárakra működik"], "correctAnswer": "A hard link közvetlenül az inode-ra mutat, a symlink egy útvonalra hivatkozik"}, {"id": 59, "question": "Melyik paranccsal lehet SSH-val csatlakozni egy távoli géphez?", "answers": ["telnet user@host", "ssh user@host", "rlogin user@host", "connect user@host"], "correctAnswer": "ssh user@host"}, {"id": 60, "question": "Mi a chmod 755 jogosultság jelentése?", "answers": ["Mindenki olvashat és írhat", "Tulajdonos: rwx, csoport és mások: r-x", "Csak a tulajdonos férhet hozzá", "Mindenki futtathatja, senki sem olvashatja"], "correctAnswer": "Tulajdonos: rwx, csoport és mások: r-x"}, {"id": 61, "question": "Melyik paranccsal lehet a rendszer hostnevet megjeleníteni vagy módosítani?", "answers": ["hostname / hostnamectl", "sethostname", "netname", "sys hostname"], "correctAnswer": "hostname / hostnamectl"}, {"id": 62, "question": "Mi az iptables eszköz funkciója?", "answers": ["IP-cím kiosztás", "Tűzfalszabályok kezelése és csomagszűrés", "DNS feloldás", "Hálózati interfész konfigurálás"], "correctAnswer": "Tűzfalszabályok kezelése és csomagszűrés"}, {"id": 63, "question": "Melyik paranccsal lehet a Linux kernel verzióját megtekinteni?", "answers": ["uname -r", "kernel --version", "sysinfo", "ver"], "correctAnswer": "uname -r"}, {"id": 64, "question": "Mi a /etc/passwd fájl tartalma?", "answers": ["Titkosított jelszavak", "Felhasználói fiókok adatai (név, UID, GID, home könyvtár, shell)", "Hálózati beállítások", "Csoporttagságok"], "correctAnswer": "Felhasználói fiókok adatai (név, UID, GID, home könyvtár, shell)"}, {"id": 65, "question": "Melyik paranccsal lehet egy könyvtár teljes tartalmát rekurzívan másolni?", "answers": ["cp -r", "copy -all", "mv -r", "clone"], "correctAnswer": "cp -r"}, {"id": 66, "question": "Mi a top parancs funkciója?", "answers": ["Fájlok rendezése", "Valós idejű folyamat- és erőforrás-figyelés", "Hálózati forgalom mérése", "Lemezhasználat megjelenítése"], "correctAnswer": "Valós idejű folyamat- és erőforrás-figyelés"}, {"id": 67, "question": "Mi a /etc/fstab fájl szerepe?", "answers": ["Futó folyamatok listája", "Automatikusan csatolandó fájlrendszerek konfigurációja", "Tűzfalszabályok", "Felhasználói jogosultságok"], "correctAnswer": "Automatikusan csatolandó fájlrendszerek konfigurációja"}, {"id": 68, "question": "Melyik paranccsal lehet belépni a Cisco router privilegizált (enable) módjába?", "answers": ["configure terminal", "enable", "login", "exec"], "correctAnswer": "enable"}, {"id": 69, "question": "Melyik rétegben működik a switch az OSI modellben?", "answers": ["1. réteg (Fizikai)", "2. réteg (Adatkapcsolati)", "3. réteg (Hálózati)", "4. réteg (Szállítási)"], "correctAnswer": "2. réteg (Adatkapcsolati)"}, {"id": 70, "question": "Melyik protokoll biztosítja az útvonalválasztást a Cisco routereken belső hálózatokon?", "answers": ["BGP", "OSPF", "HTTP", "FTP"], "correctAnswer": "OSPF"}, {"id": 71, "question": "Mit jelent a VLAN rövidítés?", "answers": ["Virtual Local Access Network", "Virtual Local Area Network", "Variable Local Area Network", "Virtual Linked Area Network"], "correctAnswer": "Virtual Local Area Network"}, {"id": 72, "question": "Melyik port az SSH alapértelmezett portszáma?", "answers": ["21", "23", "22", "80"], "correctAnswer": "22"}, {"id": 73, "question": "Melyik paranccsal lehet elmenteni a Cisco router futó konfigurációját?", "answers": ["save running-config", "copy running-config startup-config", "write startup", "export config"], "correctAnswer": "copy running-config startup-config"}, {"id": 74, "question": "Mi a spanning-tree protokoll (STP) célja?", "answers": ["IP-cím kiosztás", "Hálózati hurkok megakadályozása switchek között", "Forgalomirányítás routerek között", "DNS feloldás"], "correctAnswer": "Hálózati hurkok megakadályozása switchek között"}, {"id": 75, "question": "Melyik Cisco parancs mutatja meg a routing táblát?", "answers": ["show ip route", "display routes", "get routing-table", "list routes"], "correctAnswer": "show ip route"}, {"id": 76, "question": "Mi a trunk port funkciója egy switch-en?", "answers": ["Egyetlen VLAN forgalmát szállítja", "Több VLAN forgalmát szállítja egyetlen fizikai linken", "Csak menedzsment forgalmat enged", "Blokkolja az összes forgalmat"], "correctAnswer": "Több VLAN forgalmát szállítja egyetlen fizikai linken"}, {"id": 77, "question": "Melyik paranccsal lehet konfigurációs módba lépni a Cisco eszközön?", "answers": ["config mode", "configure terminal", "setup", "admin mode"], "correctAnswer": "configure terminal"}, {"id": 78, "question": "Mi az ACL (Access Control List) célja Cisco eszközökön?", "answers": ["IP-cím kiosztás", "Hálózati forgalom szűrése szabályok alapján", "VLAN-ok létrehozása", "Routerek közötti kapcsolat felépítése"], "correctAnswer": "Hálózati forgalom szűrése szabályok alapján"}, {"id": 79, "question": "Melyik protokoll biztosítja az automatikus IP-cím kiosztást a hálózaton?", "answers": ["ARP", "DNS", "DHCP", "ICMP"], "correctAnswer": "DHCP"}, {"id": 80, "question": "Mi a különbség a router és a switch között?", "answers": ["Nincs különbség", "A router 3. rétegben (hálózati) irányít, a switch 2. rétegben (adatkapcsolati) kapcsol", "A switch gyorsabb mint a router", "A router csak vezetékes hálózathoz használható"], "correctAnswer": "A router 3. rétegben (hálózati) irányít, a switch 2. rétegben (adatkapcsolati) kapcsol"}, {"id": 81, "question": "Melyik paranccsal lehet interfészt aktiválni (bekapcsolni) Cisco eszközön?", "answers": ["activate interface", "no shutdown", "enable interface", "start port"], "correctAnswer": "no shutdown"}, {"id": 82, "question": "Mi a NAT (Network Address Translation) funkciója?", "answers": ["Hálózati hurkok megakadályozása", "Privát IP-címek lefordítása publikus IP-címekre", "VLAN-ok közötti forgalomirányítás", "Titkosított kapcsolat létrehozása"], "correctAnswer": "Privát IP-címek lefordítása publikus IP-címekre"}, {"id": 83, "question": "Melyik Cisco parancs mutatja meg az interfészek állapotát?", "answers": ["show interfaces", "display ports", "list interfaces", "get interface-status"], "correctAnswer": "show interfaces"}, {"id": 84, "question": "Mi a port security funkciója egy Cisco switch-en?", "answers": ["Portok fizikai lezárása", "MAC-cím alapú hozzáférés-vezérlés a portokon", "Port sebességének beállítása", "Trunk portok konfigurálása"], "correctAnswer": "MAC-cím alapú hozzáférés-vezérlés a portokon"}, {"id": 85, "question": "Melyik protokoll szolgál a hálózati eszközök közötti topológia-felismerésre?", "answers": ["SNMP", "CDP (Cisco Discovery Protocol)", "STP", "HSRP"], "correctAnswer": "CDP (Cisco Discovery Protocol)"}, {"id": 86, "question": "Mi az EtherChannel célja?", "answers": ["Egy VLAN forgalmának titkosítása", "Több fizikai link logikai összevonása a sávszélesség növeléséhez", "Hálózati hurkok létrehozása", "Wireless hozzáférési pontok kezelése"], "correctAnswer": "Több fizikai link logikai összevonása a sávszélesség növeléséhez"}, {"id": 87, "question": "Melyik paranccsal lehet VLAN-t létrehozni Cisco switch-en?", "answers": ["create vlan", "vlan <szám>", "add vlan", "set vlan"], "correctAnswer": "vlan <szám>"}, {"id": 88, "question": "Mi a Telnet és az SSH közötti fő különbség?", "answers": ["A Telnet gyorsabb", "Az SSH titkosított, a Telnet nem", "A Telnet biztonságosabb", "Nincs érdemi különbség"], "correctAnswer": "Az SSH titkosított, a Telnet nem"}, {"id": 89, "question": "Mi a subnet mask (alhálózati maszk) funkciója?", "answers": ["MAC-cím azonosítása", "A hálózati és hoszt rész elkülönítése az IP-címben", "DNS nevek feloldása", "Csomagok titkosítása"], "correctAnswer": "A hálózati és hoszt rész elkülönítése az IP-címben"}, {"id": 90, "question": "Melyik Cisco paranccsal lehet jelszót beállítani az enable módhoz?", "answers": ["set password", "enable secret", "password enable", "auth enable"], "correctAnswer": "enable secret"}, {"id": 91, "question": "Mi az HSRP (Hot Standby Router Protocol) célja?", "answers": ["VLAN-ok közötti forgalomirányítás", "Router redundancia biztosítása egy virtuális átjáró IP-vel", "Hálózati hurkok megakadályozása", "Forgalom titkosítása"], "correctAnswer": "Router redundancia biztosítása egy virtuális átjáró IP-vel"}, {"id": 92, "question": "Melyik rétegben működik a router az OSI modellben?", "answers": ["1. réteg", "2. réteg", "3. réteg", "4. réteg"], "correctAnswer": "3. réteg"}, {"id": 93, "question": "Mi a 802.1Q szabvány funkciója?", "answers": ["Wi-Fi hitelesítés", "VLAN címkézés (tagging) trunk portokon", "Port biztonság", "IP-cím kiosztás"], "correctAnswer": "VLAN címkézés (tagging) trunk portokon"}, {"id": 94, "question": "Melyik paranccsal lehet a Cisco IOS verzióját megtekinteni?", "answers": ["show version", "display ios", "get version", "system info"], "correctAnswer": "show version"}, {"id": 95, "question": "Mi az ARP (Address Resolution Protocol) funkciója?", "answers": ["IP-cím kiosztás", "IP-cím hozzárendelése MAC-címhez", "Útvonalválasztás", "DNS feloldás"], "correctAnswer": "IP-cím hozzárendelése MAC-címhez"}, {"id": 96, "question": "Melyik paranccsal lehet alapértelmezett útvonalat (default route) beállítani?", "answers": ["ip route 0.0.0.0 0.0.0.0 <next-hop>", "default-gateway", "set route default", "route add default"], "correctAnswer": "ip route 0.0.0.0 0.0.0.0 <next-hop>"}, {"id": 97, "question": "Mi a VTP (VLAN Trunking Protocol) célja?", "answers": ["Trunk portok sebességének növelése", "VLAN-ok automatikus terjesztése switch-ek között egy tartományban", "Hálózati hurkok megakadályozása", "Access listák kezelése"], "correctAnswer": "VLAN-ok automatikus terjesztése switch-ek között egy tartományban"}, {"id": 98, "question": "Melyik paranccsal lehet egy Cisco switch futó konfigurációját megtekinteni?", "answers": ["show running-config", "display config", "get config", "cat config"], "correctAnswer": "show running-config"}, {"id": 99, "question": "Mi az ICMP protokoll fő feladata?", "answers": ["Fájlok átvitele", "Hálózati hibajelzés és diagnosztika (pl. ping)", "E-mail küldés", "Titkosított kommunikáció"], "correctAnswer": "Hálózati hibajelzés és diagnosztika (pl. ping)"}, {"id": 100, "question": "Mi a különbség a statikus és dinamikus útvonalválasztás között?", "answers": ["A statikus gyorsabb", "A statikus manuálisan konfigurált, a dinamikus protokollok automatikusan tanulják az útvonalakat", "A dinamikus nem skálázható", "Nincs érdemi különbség"], "correctAnswer": "A statikus manuálisan konfigurált, a dinamikus protokollok automatikusan tanulják az útvonalakat"}]`;
+
+function initDefaultQuestions() {
+  try {
+    allQuestions = JSON.parse(DEFAULT_JSON);
+    console.log('Loaded', allQuestions.length, 'default questions');
+  } catch(e) {
+    console.error('Failed to parse default questions', e);
+    allQuestions = [];
+  }
+}
+
+// ─── UPLOAD ───
+document.getElementById('json-upload').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (!Array.isArray(parsed) || !parsed[0]?.question) {
+        alert('Érvénytelen JSON formátum! A fájlnak [{question, answers, correctAnswer}] formátumúnak kell lennie.');
+        return;
+      }
+      allQuestions = parsed;
+      document.getElementById('upload-filename').textContent = file.name + ' • ' + parsed.length + ' kérdés';
+      document.getElementById('upload-badge').textContent = '✓ Betöltve';
+      document.getElementById('chip-count').textContent = parsed.length + ' kérdés';
+    } catch(err) {
+      alert('Nem sikerült beolvasni a JSON fájlt: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ─── SCREENS ───
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  if (id !== 'quiz') stopTimer();
+}
+
+function showModeSelect() {
+  showScreen('mode');
+  const available = allQuestions.length;
+  document.querySelectorAll('.mode-item').forEach(item => {
+    // Always enabled – if fewer questions than selected mode, quiz uses all available
+    item.style.opacity = '';
+    item.style.pointerEvents = '';
+    const count = parseInt(item.dataset.count);
+    const span = item.querySelector('.mode-info span');
+    if (available < count) {
+      const actual = Math.min(count, available);
+      span.textContent = `Max ${actual} kérdés lesz`;
+    } else {
+      // restore default labels
+      const labels = { 10: 'Szuper gyors teszt', 25: 'Gyors teszt', 50: 'Közepes teszt', 100: 'Teljes vizsga' };
+      span.textContent = labels[count] || span.textContent;
+    }
+  });
+}
+
+// ─── MODE SELECT ───
+function selectMode(count, el) {
+  selectedMode = count;
+  document.querySelectorAll('.mode-item').forEach(m => m.classList.remove('selected'));
+  el.classList.add('selected');
+  const btn = document.getElementById('btn-start');
+  btn.style.opacity = '1';
+  btn.style.pointerEvents = '';
+  btn.textContent = 'Kezdés – ' + count + ' kérdés →';
+}
+
+function confirmBack() {
+  if (confirm('Biztosan visszamész a főmenübe? A jelenlegi haladásod elvész.')) {
+    stopTimer();
+    showScreen('landing');
+  }
+}
+
+// ─── QUIZ START ───
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz() {
+  if (!selectedMode) return;
+  quizQuestions = shuffle(allQuestions).slice(0, selectedMode);
+  currentIndex = 0;
+  results = [];
+  elapsedSeconds = 0;
+  showScreen('quiz');
+  startTimer();
+  loadQuestion();
+}
+
+// ─── TIMER ───
+function startTimer() {
+  stopTimer();
+  startTime = Date.now();
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimer() {
+  elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+  const m = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+  const s = String(elapsedSeconds % 60).padStart(2, '0');
+  document.getElementById('timer-display').textContent = m + ':' + s;
+}
+
+// ─── QUESTION ───
+function loadQuestion() {
+  const q = quizQuestions[currentIndex];
+  const total = quizQuestions.length;
+
+  selectedAnswer = null;
+  checked = false;
+
+  // Progress
+  document.getElementById('progress-count').textContent = (currentIndex + 1) + ' / ' + total;
+  const pct = (currentIndex / total) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  // Question
+  document.getElementById('question-label').textContent = 'Kérdés ' + (currentIndex + 1);
+  document.getElementById('question-text').textContent = q.question;
+
+  // Shuffle answers
+  const shuffledAnswers = shuffle(q.answers);
+  const list = document.getElementById('answers-list');
+  list.innerHTML = '';
+  shuffledAnswers.forEach((ans, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.onclick = () => selectAnswer(ans, btn);
+    btn.innerHTML = `<div class="answer-dot"></div><span>${ans}</span>`;
+    list.appendChild(btn);
+  });
+
+  // Buttons
+  document.getElementById('btn-check').disabled = true;
+  document.getElementById('btn-next').disabled = true;
+
+  const isLast = currentIndex === total - 1;
+  document.getElementById('btn-next').textContent = isLast ? 'Befejezés →' : 'Következő →';
+}
+
+function selectAnswer(answer, btn) {
+  if (checked) return;
+  selectedAnswer = answer;
+  document.querySelectorAll('.answer-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  btn.querySelector('.answer-dot').innerHTML = '●';
+  document.getElementById('btn-check').disabled = false;
+  document.getElementById('btn-next').disabled = false;
+}
+
+function checkAnswer() {
+  if (!selectedAnswer || checked) return;
+  checked = true;
+
+  const q = quizQuestions[currentIndex];
+  const correct = q.correctAnswer.trim();
+  const isCorrect = selectedAnswer.trim() === correct;
+
+  results.push({ q, selected: selectedAnswer, correct: isCorrect });
+
+  document.querySelectorAll('.answer-btn').forEach(btn => {
+    btn.disabled = true;
+    const answerText = btn.querySelector('span').textContent.trim();
+    const dot = btn.querySelector('.answer-dot');
+    if (answerText === correct) {
+      btn.classList.add('correct');
+      dot.innerHTML = '✓';
+    } else if (answerText === selectedAnswer.trim() && !isCorrect) {
+      btn.classList.add('wrong');
+      dot.innerHTML = '✗';
+    }
+  });
+
+  document.getElementById('btn-check').disabled = true;
+  document.getElementById('btn-next').disabled = false;
+}
+
+function nextQuestion() {
+  if (!selectedAnswer && !checked) return;
+  if (!checked) {
+    // Record result without revealing answer visually
+    const q = quizQuestions[currentIndex];
+    const correct = q.correctAnswer.trim();
+    const isCorrect = selectedAnswer.trim() === correct;
+    results.push({ q, selected: selectedAnswer, correct: isCorrect });
+  }
+  currentIndex++;
+  if (currentIndex >= quizQuestions.length) {
+    stopTimer();
+    showResults();
+  } else {
+    loadQuestion();
+  }
+}
+
+// ─── RESULTS ───
+function showResults() {
+  showScreen('results');
+  const correct = results.filter(r => r.correct).length;
+  const total = results.length;
+  const pct = Math.round((correct / total) * 100);
+
+  // Score circle
+  const circumference = 427.26;
+  const offset = circumference - (pct / 100) * circumference;
+  const fill = document.getElementById('circle-fill');
+  fill.style.strokeDashoffset = circumference;
+
+  let color, icon, title;
+  if (pct >= 90) { color = '#22c55e'; icon = '🏆'; title = 'Kiváló!'; }
+  else if (pct >= 70) { color = '#6c63ff'; icon = '🌟'; title = 'Remek munka!'; }
+  else if (pct >= 50) { color = '#f59e0b'; icon = '💪'; title = 'Jó haladás!'; }
+  else { color = '#ef4444'; icon = '📚'; title = 'Tanulj még!'; }
+
+  fill.style.stroke = color;
+  setTimeout(() => { fill.style.strokeDashoffset = offset; }, 50);
+
+  document.getElementById('result-icon').textContent = icon;
+  document.getElementById('result-score').textContent = correct + '/' + total;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-title').style.color = color;
+  document.getElementById('result-pct').textContent = pct + '% helyes';
+
+  const m = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+  const s = String(elapsedSeconds % 60).padStart(2, '0');
+  document.getElementById('result-time').textContent = '⏱ Felhasznált idő ' + m + ':' + s;
+
+  // Review
+  const review = document.getElementById('answers-review');
+  review.innerHTML = '';
+  results.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'review-item';
+    const correctLabel = r.correct
+      ? `<div class="review-item-a correct">✓ ${r.selected}</div>`
+      : `<div class="review-item-a wrong">✗ ${r.selected}</div>
+         <div class="review-item-correct-ans">Helyes: ${r.q.correctAnswer}</div>`;
+    div.innerHTML = `
+      <div class="review-item-q"><span class="review-item-num">${i+1}</span>${r.q.question}</div>
+      ${correctLabel}
+    `;
+    review.appendChild(div);
+  });
+}
+
+function restartSame() {
+  currentIndex = 0;
+  results = [];
+  elapsedSeconds = 0;
+  quizQuestions = shuffle(allQuestions).slice(0, selectedMode);
+  showScreen('quiz');
+  startTimer();
+  loadQuestion();
+}
+
+// ─── INIT ───
+initDefaultQuestions();
+</script>
+</body>
+</html>
