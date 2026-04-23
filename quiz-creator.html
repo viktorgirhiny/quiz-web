@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kvíz Kérdésszerkesztő</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 24px;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        h1 {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 2rem;
+            color: #fff;
+            padding: 20px 0;
+            border-bottom: 2px solid #0f3460;
+            margin-bottom: 10px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel h2 {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .question-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .question-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .question-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .question-list::-webkit-scrollbar-thumb {
+            background: #0f3460;
+            border-radius: 3px;
+        }
+
+        .question-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .question-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .question-item.active {
+            border-color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .question-item.modified::after {
+            content: '•';
+            color: #f59e0b;
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+
+        .question-item-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.95rem;
+        }
+
+        .question-item-id {
+            background: #0f3460;
+            color: #94a3b8;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #d63d56;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #0f3460;
+            color: #e4e4e4;
+        }
+
+        .btn-secondary:hover {
+            background: #1a4a7a;
+        }
+
+        .btn-danger {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .btn-danger:hover {
+            background: #991b1b;
+        }
+
+        .btn-success {
+            background: #065f46;
+            color: #6ee7b7;
+        }
+
+        .btn-success:hover {
+            background: #047857;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: #e4e4e4;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 600px) {
+            .answers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .answer-input-group {
+            position: relative;
+        }
+
+        .answer-input-group input {
+            width: 100%;
+            padding-right: 50px;
+        }
+
+        .answer-input-group .correct-toggle {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .answer-input-group .correct-toggle:hover {
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .answer-input-group .correct-toggle.active {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: scale(0.9);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal h3 {
+            margin-bottom: 12px;
+            color: #f59e0b;
+        }
+
+        .modal p {
+            margin-bottom: 20px;
+            color: #94a3b8;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .badge {
+            background: #e94560;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            opacity: 0;
+        }
+
+        .question-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Kvíz Kérdésszerkesztő</h1>
+
+        <!-- Question List Panel -->
+        <div class="panel">
+            <h2>
+                Kérdések
+                <span class="badge" id="questionCount">0</span>
+            </h2>
+            <div class="question-list" id="questionList">
+                <div class="empty-state">
+                    <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Még nincs kérdés.<br>Adj hozzá egy újat!</p>
+                </div>
+            </div>
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="addNewQuestion()">
+                    <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Új kérdés
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                    📂 Betöltés
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".json" onchange="loadFromFile(event)">
+                <button class="btn btn-success" onclick="downloadJSON()">
+                    💾 Letöltés
+                </button>
+            </div>
+        </div>
+
+        <!-- Editor Panel -->
+        <div class="panel">
+            <h2>Szerkesztő</h2>
+            <div id="editorContent">
+                <div class="empty-state">
+                    <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <p>Válassz ki egy kérdést a szerkesztéshez,<br>vagy adj hozzá egy újat!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unsaved Changes Modal -->
+    <div class="modal-overlay" id="unsavedModal">
+        <div class="modal">
+            <h3>⚠️ Mentetlen változtatások</h3>
+            <p>A jelenlegi kérdésben mentetlen változtatások vannak. Mit szeretnél tenni?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="discardChanges()">Elvetés</button>
+                <button class="btn btn-primary" onclick="saveAndSwitch()">Mentés</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <h3>🗑️ Kérdés törlése</h3>
+            <p>Biztosan törölni szeretnéd ezt a kérdést? Ez a művelet nem vonható vissza.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Mégse</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Törlés</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let questions = [];
+        let currentQuestionId = null;
+        let pendingQuestionId = null;
+        let deleteQuestionId = null;
+        let originalQuestion = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderQuestionList();
+        });
+
+        // Check if current question has unsaved changes
+        function hasUnsavedChanges() {
+            if (currentQuestionId === null || originalQuestion === null) return false;
+            
+            const currentData = getEditorData();
+            if (!currentData) return false;
+
+            return JSON.stringify(currentData) !== JSON.stringify(originalQuestion);
+        }
+
+        // Get data from editor
+        function getEditorData() {
+            const questionInput = document.getElementById('questionText');
+            if (!questionInput) return null;
+
+            const answers = [];
+            for (let i = 0; i < 4; i++) {
+                const input = document.getElementById(`answer${i}`);
+                if (input) answers.push(input.value);
+            }
+
+            const correctToggle = document.querySelector('.correct-toggle.active');
+            const correctIndex = correctToggle ? parseInt(correctToggle.dataset.index) : 0;
+
+            return {
+                question: questionInput.value,
+                answers: answers,
+                correctAnswer: answers[correctIndex] || ''
+            };
+        }
+
+        // Render question list
+        function renderQuestionList() {
+            const list = document.getElementById('questionList');
+            const count = document.getElementById('questionCount');
+            
+            count.textContent = questions.length;
+
+            if (questions.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>Még nincs kérdés.<br>Adj hozzá egy újat!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = questions.map(q => {
+                const isActive = q.id === currentQuestionId;
+                const isModified = isActive && hasUnsavedChanges();
+                return `
+                    <div class="question-item ${isActive ? 'active' : ''} ${isModified ? 'modified' : ''}" 
+                         onclick="selectQuestion(${q.id})">
+                        <span class="question-item-id">#${q.id}</span>
+                        <span class="question-item-text">${escapeHtml(q.question) || 'Üres kérdés...'}</span>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteQuestion(${q.id})" title="Törlés">
+                            <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Select a question
+        function selectQuestion(id) {
+            if (id === currentQuestionId) return;
+
+            if (hasUnsavedChanges()) {
+                pendingQuestionId = id;
+                document.getElementById('unsavedModal').classList.add('active');
+                return;
+            }
+
+            loadQuestion(id);
+        }
+
+        // Load question into editor
+        function loadQuestion(id) {
+            const question = questions.find(q => q.id === id);
+            if (!question) return;
+
+            currentQuestionId = id;
+            originalQuestion = {
+                question: question.question,
+                answers: [...question.answers],
+                correctAnswer: question.correctAnswer
+            };
+
+            const correctIndex = question.answers.indexOf(question.correctAnswer);
+
+            document.getElementById('editorContent').innerHTML = `
+                <div class="editor-section">
+                    <div class="form-group">
+                        <label>Kérdés szövege</label>
+                        <textarea id="questionText" placeholder="Írd be a kérdést..." oninput="onEditorChange()">${escapeHtml(question.question)}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Válaszlehetőségek <span style="color: #64748b; font-weight: normal;">(kattints a ✓ gombra a helyes válasz kijelöléséhez)</span></label>
+                        <div class="answers-grid">
+                            ${question.answers.map((answer, i) => `
+                                <div class="answer-input-group">
+                                    <input type="text" id="answer${i}" value="${escapeHtml(answer)}" 
+                                           placeholder="${String.fromCharCode(65 + i)}) válasz" oninput="onEditorChange()">
+                                    <button class="correct-toggle ${i === correctIndex ? 'active' : ''}" 
+                                            data-index="${i}" onclick="setCorrectAnswer(${i})" title="Helyes válasz">
+                                        ✓
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="editor-actions">
+                        <button class="btn btn-primary" onclick="saveQuestion()">
+                            💾 Mentés
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetQuestion()">
+                            ↩️ Visszaállítás
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            renderQuestionList();
+        }
+
+        // Editor change handler
+        function onEditorChange() {
+            renderQuestionList();
+        }
+
+        // Set correct answer
+        function setCorrectAnswer(index) {
+            document.querySelectorAll('.correct-toggle').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            onEditorChange();
+        }
+
+        // Save current question
+        function saveQuestion() {
+            if (currentQuestionId === null) return;
+
+            const data = getEditorData();
+            if (!data) return;
+
+            const index = questions.findIndex(q => q.id === currentQuestionId);
+            if (index === -1) return;
+
+            questions[index] = {
+                id: currentQuestionId,
+                ...data
+            };
+
+            originalQuestion = {
+                question: data.question,
+                answers: [...data.answers],
+                correctAnswer: data.correctAnswer
+            };
+
+            renderQuestionList();
+        }
+
+        // Reset question to original
+        function resetQuestion() {
+            if (currentQuestionId === null || !originalQuestion) return;
+            
+            const correctIndex = originalQuestion.answers.indexOf(originalQuestion.correctAnswer);
+            
+            document.getElementById('questionText').value = originalQuestion.question;
+            originalQuestion.answers.forEach((answer, i) => {
+                document.getElementById(`answer${i}`).value = answer;
+            });
+            
+            document.querySelectorAll('.correct-toggle').forEach((btn, i) => {
+                btn.classList.toggle('active', i === correctIndex);
+            });
+
+            renderQuestionList();
+        }
+
+        // Add new question
+        function addNewQuestion() {
+            if (hasUnsavedChanges()) {
+                pendingQuestionId = 'new';
+                document.getElementById('unsavedModal').classList.add('active');
+                return;
+            }
+
+            createNewQuestion();
+        }
+
+        function createNewQuestion() {
+            const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
+            
+            const newQuestion = {
+                id: newId,
+                question: '',
+                answers: ['', '', '', ''],
+                correctAnswer: ''
+            };
+
+            questions.push(newQuestion);
+            loadQuestion(newId);
+        }
+
+        // Delete question
+        function deleteQuestion(id) {
+            deleteQuestionId = id;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            deleteQuestionId = null;
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+
+        function confirmDelete() {
+            if (deleteQuestionId === null) return;
+
+            questions = questions.filter(q => q.id !== deleteQuestionId);
+            
+            if (currentQuestionId === deleteQuestionId) {
+                currentQuestionId = null;
+                originalQuestion = null;
+                document.getElementById('editorContent').innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <p>Válassz ki egy kérdést a szerkesztéshez,<br>vagy adj hozzá egy újat!</p>
+                    </div>
+                `;
+            }
+
+            closeDeleteModal();
+            renderQuestionList();
+        }
+
+        // Modal handlers
+        function discardChanges() {
+            document.getElementById('unsavedModal').classList.remove('active');
+            
+            if (pendingQuestionId === 'new') {
+                createNewQuestion();
+            } else if (pendingQuestionId !== null) {
+                loadQuestion(pendingQuestionId);
+            }
+            pendingQuestionId = null;
+        }
+
+        function saveAndSwitch() {
+            saveQuestion();
+            document.getElementById('unsavedModal').classList.remove('active');
+            
+            if (pendingQuestionId === 'new') {
+                createNewQuestion();
+            } else if (pendingQuestionId !== null) {
+                loadQuestion(pendingQuestionId);
+            }
+            pendingQuestionId = null;
+        }
+
+        // Download JSON
+        function downloadJSON() {
+            // Save current question first if there are changes
+            if (hasUnsavedChanges()) {
+                saveQuestion();
+            }
+
+            const json = JSON.stringify(questions, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'quiz-questions.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load from file
+        function loadFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        questions = data;
+                        currentQuestionId = null;
+                        originalQuestion = null;
+                        
+                        document.getElementById('editorContent').innerHTML = `
+                            <div class="empty-state">
+                                <svg xmlns="[w3.org](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                <p>Válassz ki egy kérdést a szerkesztéshez,<br>vagy adj hozzá egy újat!</p>
+                            </div>
+                        `;
+                        
+                        renderQuestionList();
+                    } else {
+                        alert('Hibás formátum: a fájlnak egy tömböt kell tartalmaznia.');
+                    }
+                } catch (err) {
+                    alert('Hiba a fájl beolvasásakor: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Warn before leaving page with unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges()) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f0ee3a5ad88c29b',t:'MTc3Njk2ODUwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
